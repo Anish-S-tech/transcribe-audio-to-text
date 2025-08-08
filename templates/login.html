@@ -1,26 +1,121 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-md-6">
-    <div class="card shadow-sm border-0">
-      <div class="card-body">
-        <h4 class="card-title text-center mb-4 text-primary">🔐 Login</h4>
-        <form method="POST" novalidate>
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-lg border-0 rounded-4">
+      <div class="card-body p-4">
+        <!-- Header with Logo -->
+        <div class="text-center mb-4">
           <div class="mb-3">
-            <label for="email" class="form-label">Email address</label>
-            <input type="email" name="email" id="email" class="form-control" required aria-describedby="emailHelp">
+            <i class="fas fa-sign-in-alt text-primary" style="font-size: 3rem;"></i>
           </div>
+          <h4 class="card-title fw-bold text-primary">Welcome Back</h4>
+          <p class="text-muted small">Login to continue converting audio to text</p>
+        </div>
+
+        <!-- Login Form -->
+        <form method="POST" novalidate class="needs-validation">
+          <!-- Username or Email -->
           <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
-            <input type="password" name="password" id="password" class="form-control" required>
+            <label for="username" class="form-label fw-semibold">
+              <i class="fas fa-user me-2 text-primary"></i>Username or Email
+            </label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-user"></i></span>
+              <input type="text" 
+                     name="username" 
+                     id="username" 
+                     class="form-control" 
+                     placeholder="johndoe or you@example.com"
+                     required>
+              <div class="invalid-feedback">
+                Please enter your username or email
+              </div>
+            </div>
           </div>
+
+          <!-- Password -->
+          <div class="mb-3">
+            <label for="password" class="form-label fw-semibold">
+              <i class="fas fa-lock me-2 text-primary"></i>Password
+            </label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-lock"></i></span>
+              <input type="password" 
+                     name="password" 
+                     id="password" 
+                     class="form-control" 
+                     placeholder="••••••••"
+                     required>
+              <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                <i class="fas fa-eye"></i>
+              </button>
+              <div class="invalid-feedback">
+                Please enter your password
+              </div>
+            </div>
+          </div>
+
+          <!-- Remember Me & Forgot Password -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rememberMe">
+              <label class="form-check-label" for="rememberMe">
+                Remember me
+              </label>
+            </div>
+            <a href="#" class="text-decoration-none small text-primary">Forgot password?</a>
+          </div>
+
+          <!-- Submit Button -->
           <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-primary">Login</button>
-            <a href="{{ url_for('register') }}" class="btn btn-outline-secondary">Register</a>
+            <button type="submit" class="btn btn-primary btn-lg fw-semibold">
+              <i class="fas fa-sign-in-alt me-2"></i>Login
+            </button>
+            <a href="{{ url_for('register') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-user-plus me-2"></i>Create Account
+            </a>
           </div>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<script>
+// Form validation
+(function() {
+  'use strict';
+  window.addEventListener('load', function() {
+    var forms = document.getElementsByClassName('needs-validation');
+    Array.prototype.forEach.call(forms, function(form) {
+      form.addEventListener('submit', function(event) {
+        if (form.checkValidity() === false) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+    });
+  }, false);
+})();
+
+// Password toggle
+document.getElementById('togglePassword').addEventListener('click', function() {
+  const password = document.getElementById('password');
+  const icon = this.querySelector('i');
+  if (password.type === 'password') {
+    password.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    password.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+});
+</script>
 {% endblock %}
