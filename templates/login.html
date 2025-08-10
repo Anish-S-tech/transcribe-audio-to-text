@@ -14,7 +14,7 @@
         </div>
 
         <!-- Login Form -->
-        <form method="POST" novalidate class="needs-validation">
+        <form method="POST" action="{{ url_for('login') }}" novalidate class="needs-validation">
           <!-- Username or Email -->
           <div class="mb-3">
             <label for="username" class="form-label fw-semibold">
