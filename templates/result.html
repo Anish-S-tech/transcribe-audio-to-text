@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Transcription Result{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <!-- Page Title -->
+    <div class="text-center mb-4">
+        <h2 class="fw-bold text-primary">
+            <i class="fas fa-file-alt me-2"></i>Transcription Result
+        </h2>
+        <p class="text-muted">Here’s your converted text. You can copy or download it for later use.</p>
+    </div>
+
+    <!-- Transcription Card -->
+    <div class="card shadow-lg border-0 rounded-4">
+        <div class="card-body">
+            <pre class="bg-light p-3 rounded" style="white-space: pre-wrap; word-wrap: break-word;">
+{{ text }}
+            </pre>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex flex-wrap gap-2 mt-4">
+        <button class="btn btn-outline-primary" id="copyBtn">
+            <i class="fas fa-copy me-1"></i>Copy Text
+        </button>
+        <a href="data:text/plain;charset=utf-8,{{ text | urlencode }}" download="transcription.txt" class="btn btn-success">
+            <i class="fas fa-download me-1"></i>Download
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Copy to Clipboard Script -->
+<script>
+document.getElementById('copyBtn').addEventListener('click', function() {
+    const textToCopy = `{{ text | e }}`;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        alert('Transcription copied to clipboard!');
+    }).catch(err => {
+        console.error('Could not copy text: ', err);
+    });
+});
+</script>
+{% endblock %}

@@ -1,8 +1,5 @@
-# Full Flask App with MongoDB for Audio-to-Text
-
 import os
-import uuid
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, send_file,session
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 from gridfs import GridFS
@@ -10,21 +7,20 @@ from bson import ObjectId
 from pydub import AudioSegment
 import speech_recognition as sr
 from flask_bcrypt import Bcrypt
-from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin
+from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 
 # Flask Setup
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
+app.secret_key = os.getenv('SECRET_KEY', 'fallback_secret')
 app.config['UPLOAD_FOLDER'] = 'uploads/'
-
-load_dotenv()
-# Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # MongoDB Setup
-client = MongoClient(os.getenv('MONGO_URI'))  
+client = MongoClient(os.getenv('MONGO_URI'))
 db = client['audio_app']
 users_col = db['users']
 transcripts_col = db['transcripts']
@@ -35,6 +31,7 @@ bcrypt = Bcrypt(app)
 
 # Flask-Login setup
 login_manager = LoginManager()
+login_manager.login_view = 'login'
 login_manager.init_app(app)
 
 class User(UserMixin):
@@ -58,7 +55,7 @@ def register():
         password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
         if users_col.find_one({'email': email}):
             return 'Email already exists'
-        user_id = users_col.insert_one({'email': email, 'password': password}).inserted_id
+        users_col.insert_one({'email': email, 'password': password})
         return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -81,8 +78,7 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    user_id = ObjectId(session['_user_id'])
-    records = list(transcripts_col.find({'user_id': user_id}))
+    records = list(transcripts_col.find({'user_id': ObjectId(current_user.id)}))
     return render_template('dashboard.html', history=records)
 
 @app.route('/upload', methods=['GET', 'POST'])
@@ -90,6 +86,9 @@ def dashboard():
 def upload():
     if request.method == 'POST':
         file = request.files['file']
+        if not file:
+            return "No file uploaded", 400
+
         filename = secure_filename(file.filename)
         ext = os.path.splitext(filename)[1].lower()
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -103,21 +102,64 @@ def upload():
         else:
             wav_path = temp_path
 
-        # Transcribe
+        # Transcribe in chunks
         recognizer = sr.Recognizer()
-        with sr.AudioFile(wav_path) as source:
-            audio_data = recognizer.record(source)
-            try:
-                text = recognizer.recognize_google(audio_data)
-            except:
-                text = '[Unrecognizable]'
+        audio = AudioSegment.from_wav(wav_path)
+        chunk_length_ms = 30 * 1000  # 30 seconds
+        chunks = [audio[i:i + chunk_length_ms] for i in range(0, len(audio), chunk_length_ms)]
+
+        full_text = []
+        for i, chunk in enumerate(chunks):
+            chunk_filename = f"temp_chunk_{i}.wav"
+            chunk.export(chunk_filename, format="wav")
+
+            with sr.AudioFile(chunk_filename) as source:
+                audio_data = recognizer.record(source)
+                try:
+                    text = recognizer.recognize_google(audio_data)
+                    full_text.append(text)
+                except sr.UnknownValueError:
+                    # Skip unrecognizable chunks instead of adding spam
+                    pass
+                except sr.RequestError:
+                    full_text.append("[API Error]")
+
+            os.remove(chunk_filename)
+
+        final_text = " ".join(full_text).strip() if full_text else "[No speech recognized]"
 
         # Save audio to GridFS
         audio_id = fs.put(open(wav_path, 'rb'), filename=filename)
 
-        # Save record
+        # Save record in MongoDB
         transcripts_col.insert_one({
             'user_id': ObjectId(session['_user_id']),
+            'filename': filename,
+            'transcription': final_text,
+            'audio_id': audio_id
+        })
+
+        # Cleanup
+        os.remove(temp_path)
+        if wav_path != temp_path:
+            os.remove(wav_path)
+
+        return render_template('result.html', text=final_text)
+
+        return render_template('upload.html')
+
+
+
+        # join parts and strip
+        text = " ".join(full_parts).strip()
+        # === end improved block ===
+
+        # Save to DB
+        with open(wav_path, 'rb') as f:
+            audio_id = fs.put(f, filename=filename)
+
+        transcripts_col.insert_one({
+            'user_id': ObjectId(current_user.id),
             'filename': filename,
             'transcription': text,
             'audio_id': audio_id
