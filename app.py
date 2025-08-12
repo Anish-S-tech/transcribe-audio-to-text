@@ -85,7 +85,7 @@ def dashboard():
 @login_required
 def upload():
     if request.method == 'POST':
-        file = request.files['file']
+        file = request.files.get('file')
         if not file:
             return "No file uploaded", 400
 
@@ -119,8 +119,7 @@ def upload():
                     text = recognizer.recognize_google(audio_data)
                     full_text.append(text)
                 except sr.UnknownValueError:
-                    # Skip unrecognizable chunks instead of adding spam
-                    pass
+                    pass  # skip unrecognizable chunks
                 except sr.RequestError:
                     full_text.append("[API Error]")
 
@@ -129,48 +128,23 @@ def upload():
         final_text = " ".join(full_text).strip() if full_text else "[No speech recognized]"
 
         # Save audio to GridFS
-        audio_id = fs.put(open(wav_path, 'rb'), filename=filename)
+        with open(wav_path, 'rb') as f:
+            audio_id = fs.put(f, filename=filename)
 
-        # Save record in MongoDB
+        # Save transcription record in MongoDB (using current_user.id instead of session)
         transcripts_col.insert_one({
-            'user_id': ObjectId(session['_user_id']),
+            'user_id': ObjectId(current_user.id),
             'filename': filename,
             'transcription': final_text,
             'audio_id': audio_id
         })
 
-        # Cleanup
+        # Cleanup temp files
         os.remove(temp_path)
         if wav_path != temp_path:
             os.remove(wav_path)
 
         return render_template('result.html', text=final_text)
-
-        return render_template('upload.html')
-
-
-
-        # join parts and strip
-        text = " ".join(full_parts).strip()
-        # === end improved block ===
-
-        # Save to DB
-        with open(wav_path, 'rb') as f:
-            audio_id = fs.put(f, filename=filename)
-
-        transcripts_col.insert_one({
-            'user_id': ObjectId(current_user.id),
-            'filename': filename,
-            'transcription': text,
-            'audio_id': audio_id
-        })
-
-        # Cleanup
-        os.remove(temp_path)
-        if wav_path != temp_path:
-            os.remove(wav_path)
-
-        return render_template('result.html', text=text)
 
     return render_template('upload.html')
 
